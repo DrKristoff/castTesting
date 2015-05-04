@@ -72,7 +72,7 @@ public class GameActivity extends ActionBarActivity {
     private MediaRouter mMediaRouter;
     private MediaRouteSelector mMediaRouteSelector;
     private MediaRouter.Callback mMediaRouterCallback;
-    private TicTacToeChannel mGameChannel;
+    private BetOnItChannel mGameChannel;
 
     /**
      * Called when the activity is first created. Initializes the game with necessary listeners
@@ -92,7 +92,7 @@ public class GameActivity extends ActionBarActivity {
         mGameView.setFocusableInTouchMode(true);
         mGameView.setCellListener(new CellListener());
 
-        mGameChannel = new TicTacToeChannel();
+        mGameChannel = new BetOnItChannel();
 
         mMediaRouter = MediaRouter.getInstance(getApplicationContext());
         mMediaRouteSelector = new MediaRouteSelector.Builder()
@@ -300,24 +300,11 @@ public class GameActivity extends ActionBarActivity {
         setSelectedDevice(null);
     }
 
-    /**
-     * A class which listens for the selection of a certain cell and attempts to place a mark in
-     * that cell.
-     */
-    private class CellListener implements ICellListener {
-        @Override
-        public void onCellSelected(int row, int column) {
-            if ((mGameView.getAssignedPlayer() == State.PLAYER_O)
-                    || (mGameView.getAssignedPlayer() == State.PLAYER_X)) {
-                mGameChannel.move(mApiClient, row, column);
-            }
-        }
-    }
 
     /**
-     * An extension of the GameChannel specifically for the TicTacToe game.
+     * An extension of the GameChannel specifically for the Bet On It game.
      */
-    private class TicTacToeChannel extends GameChannel {
+    private class BetOnItChannel extends GameChannel {
         /**
          * Sets displays accordingly when a new player joins the game.
          *
@@ -338,23 +325,6 @@ public class GameActivity extends ActionBarActivity {
                     String.format(getResources().getString(R.string.player_name), playerSymbol));
             mInfoView.setText(String.format(
                     getResources().getString(R.string.player_turn), GameChannel.PLAYER_X));
-        }
-
-        /**
-         * Updates the game display upon a move.
-         */
-        @Override
-        protected void onGameMove(String playerSymbol, int row, int column, boolean isGameOver) {
-            State player = State.PLAYER_O;
-            String otherPlayerName = GameChannel.PLAYER_X;
-            if (GameChannel.PLAYER_X.equals(playerSymbol)) {
-                player = State.PLAYER_X;
-                otherPlayerName = GameChannel.PLAYER_O;
-            }
-
-            mGameView.setCell(row, column, player);
-            mInfoView.setText(
-                    String.format(getResources().getString(R.string.player_turn), otherPlayerName));
         }
 
         /**
@@ -397,14 +367,6 @@ public class GameActivity extends ActionBarActivity {
         }
 
         /**
-         * Updates the game board's layout based on a passed 2-D int array.
-         */
-        @Override
-        protected void onGameBoardLayout(int[][] boardLayout) {
-            mGameView.updateBoard(boardLayout);
-        }
-
-        /**
          * Clears the game board upon a game error being detected, and displays an error dialog.
          */
         @Override
@@ -431,6 +393,26 @@ public class GameActivity extends ActionBarActivity {
                     .create()
                     .show();
         }
+        
+        /**        
+         * does something
+         */
+        @Override
+        protected void onGuessRequest(){
+        	
+        	//Do Stuff
+        }
+        
+        /**        
+         * does something
+         */
+        @Override
+        protected void onBetRequest(){
+        	
+        	//Do Stuff
+        }
+        
+        
     }
 
     /**

@@ -33,91 +33,33 @@ import android.util.Log;
  * during a TicTacToe game.
  */
 public abstract class GameChannel implements Cast.MessageReceivedCallback {
+	
     private static final String TAG = GameChannel.class.getSimpleName();
 
-    private static final String GAME_NAMESPACE = "urn:x-cast:com.google.cast.demo.tictactoe";
-
-/*    public static final String END_STATE_X_WON = "X-won";
-    public static final String END_STATE_O_WON = "O-won";
-    public static final String END_STATE_DRAW = "draw";
-    public static final String END_STATE_ABANDONED = "abandoned";
-
-    public static final String PLAYER_X = "X";
-    public static final String PLAYER_O = "O";*/
+    private static final String GAME_NAMESPACE = "urn:x-cast:com.betonit";
 
     // Receivable event types
-    private static final String KEY_BOARD_LAYOUT_RESPONSE = "board_layout_response";
     private static final String KEY_EVENT = "event";
     private static final String KEY_JOINED = "joined";
-    private static final String KEY_MOVED = "moved";
     private static final String KEY_ENDGAME = "endgame";
+    private static final String KEY_BET_REQUEST = "bet_request";
+    private static final String KEY_GUESS_REQUEST = "guess_request";
     private static final String KEY_ERROR = "error";
 
     // Commands
-    private static final String KEY_BOARD_LAYOUT_REQUEST = "board_layout_request";
     private static final String KEY_COMMAND = "command";
     private static final String KEY_JOIN = "join";
     private static final String KEY_BET = "bet";
-    private static final String KEY_LEAVE = "leave";
     private static final String KEY_GUESS = "guess";
+    private static final String KEY_LEAVE = "leave";
+    
 
     private static final String KEY_GAME_OVER = "game_over";
     private static final String KEY_MESSAGE = "message";
     private static final String KEY_NAME = "name";
-    private static final String KEY_OPPONENT = "opponent";
     private static final String KEY_PLAYER = "player";
     private static final String KEY_ANSWER_ONE = "answer_one";
     private static final String KEY_ANSWER_TWO = "answer_two";
-
-    /**
-     * An enum representing board rows, columns, and diagonals as numerical values.
-     */
-    public enum WinningLocation {
-        ROW_0(0),
-        ROW_1(1),
-        ROW_2(2),
-        COL_0(3),
-        COL_1(4),
-        COL_2(5),
-        DIAGONAL_TOPLEFT(6),
-        DIAGONAL_BOTTOMLEFT(7),
-        UNKNOWN(-1);
-
-        int mValue;
-
-        private WinningLocation(int value) {
-            mValue = value;
-        }
-
-        public int getValue() {
-            return mValue;
-        }
-
-        /**
-         * Returns a WinningLocation, given an int value.
-         */
-        public static WinningLocation fromIntValue(int value) {
-            if (ROW_0.getValue() == value) {
-                return ROW_0;
-            } else if (ROW_1.getValue() == value) {
-                return ROW_1;
-            } else if (ROW_2.getValue() == value) {
-                return ROW_2;
-            } else if (COL_0.getValue() == value) {
-                return COL_0;
-            } else if (COL_1.getValue() == value) {
-                return COL_1;
-            } else if (COL_2.getValue() == value) {
-                return COL_2;
-            } else if (DIAGONAL_TOPLEFT.getValue() == value) {
-                return DIAGONAL_TOPLEFT;
-            } else if (DIAGONAL_BOTTOMLEFT.getValue() == value) {
-                return DIAGONAL_BOTTOMLEFT;
-            } else {
-                return UNKNOWN;
-            }
-        }
-    }
 
     /**
      * Constructs a new GameChannel m with GAME_NAMESPACE as the namespace used by
@@ -134,16 +76,6 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
      */
     protected abstract void onGameJoined(String playerSymbol, String opponentName);
 
-    /**
-     * Performs some action, or updates the game display upon a move.
-     *
-     * @param playerSymbol either X or O
-     * @param row the row index of the move
-     * @param column the column index of the move
-     * @param isGameOver whether or not the game ended as a result of the move
-     */
-    protected abstract void onGameMove(
-            String playerSymbol, int row, int column, boolean isGameOver);
 
     /**
      * Performs some action upon game end, depending on game's end state and the position of the
@@ -155,11 +87,18 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
     protected abstract void onGameEnd(String endState, int location);
 
     /**
-     * Performs some action upon an int[][] board layout being sent.
+     * 
      *
-     * @param boardLayout a 2-D array of ints, likely to be 3x3
+     * 
      */
-    protected abstract void onGameBoardLayout(int[][] boardLayout);
+    protected abstract void onBetRequest();
+    
+    /**
+     * 
+     *
+     * 
+     */
+    protected abstract void onGuessRequest();            
 
     /**
      * Performs some action upon a game error.
@@ -215,14 +154,33 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
             arrayOne.put(answerOneCoins);
 
             JSONArray arrayTwo = new JSONArray();
-            arrayOne.put(answerTwo);
-            arrayOne.put(answerTwoCoins);
+            arrayTwo.put(answerTwo);
+            arrayTwo.put(answerTwoCoins);
 
             payload.put(KEY_ANSWER_ONE, arrayOne);
             payload.put(KEY_ANSWER_TWO, arrayTwo);
             sendMessage(apiClient, payload.toString());
         } catch (JSONException e) {
-            Log.e(TAG, "Cannot create object to send a move", e);
+            Log.e(TAG, "Cannot create object to place a bet", e);
+        }
+    }
+    
+    /**
+     * Attempts to guess a numeric answer to the question asked by the game.
+     *
+     * @param guess the value of the submitted guess
+     *
+     */
+    public final void guess(GoogleApiClient apiClient, final int guess) {
+        Log.d(TAG, "guess: " + guess);
+
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put(KEY_COMMAND, KEY_GUESS);
+            payload.put(KEY_GUESS, guess);
+            sendMessage(apiClient, payload.toString());
+        } catch (JSONException e) {
+            Log.e(TAG, "Cannot create object to make a guess", e);
         }
     }
 
@@ -239,31 +197,17 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
             Log.e(TAG, "Cannot create object to leave a game", e);
         }
     }
-
-    /**
-     * Sends a command requesting the current layout of the board.
-     */
-    public final void requestBoardLayout(GoogleApiClient apiClient) {
-        try {
-            Log.d(TAG, "requestBoardLayout");
-            JSONObject payload = new JSONObject();
-            payload.put(KEY_COMMAND, KEY_BOARD_LAYOUT_REQUEST);
-            sendMessage(apiClient, payload.toString());
-        } catch (JSONException e) {
-            Log.e(TAG, "Cannot create object to request board layout", e);
-        }
-    }
-
+W
     /**
      * Processes all Text messages received from the receiver device and performs the appropriate
      * action for the message. Recognizable messages are of the form:
      *
      * <ul>
      * <li> KEY_JOINED: a player joined the current game
-     * <li> KEY_MOVED: a player made a move
      * <li> KEY_ENDGAME: the game has ended in one of the END_STATE_* states
      * <li> KEY_ERROR: a game error has occurred
-     * <li> KEY_BOARD_LAYOUT_RESPONSE: the board has been laid out in some new configuration
+     * <li> KEY_GUESS_REQUEST: the game has finished asking a question and requests answers
+     * <li> KEY_BET_REQUEST: everyone has submitted guesses and the game requests bets to be placed
      * </ul>
      *
      * <p>No other messages are recognized.
@@ -276,6 +220,8 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
             Log.d(TAG, "payload: " + payload);
             if (payload.has(KEY_EVENT)) {
                 String event = payload.getString(KEY_EVENT);
+                
+                /**********************JOINED EVENT***************************/
                 if (KEY_JOINED.equals(event)) {
                     Log.d(TAG, "JOINED");
                     try {
@@ -285,18 +231,9 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
-                } else if (KEY_MOVED.equals(event)) {
-                    Log.d(TAG, "MOVED");
-                    try {
-                        String player = payload.getString(KEY_PLAYER);
-                        int row = payload.getInt(KEY_ROW);
-                        int column = payload.getInt(KEY_COLUMN);
-                        boolean isGameOver = payload.getBoolean(KEY_GAME_OVER);
-                        onGameMove(player, row, column, isGameOver);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                } else if (KEY_ENDGAME.equals(event)) {
+                } 
+                /**********************ENDGAME EVENT***************************/
+                else if (KEY_ENDGAME.equals(event)) {
                     Log.d(TAG, "ENDGAME");
                     try {
                         String endState = payload.getString(KEY_END_STATE);
@@ -308,7 +245,9 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
-                } else if (KEY_ERROR.equals(event)) {
+                } 
+                /**********************ERROR EVENT***************************/
+                else if (KEY_ERROR.equals(event)) {
                     Log.d(TAG, "ERROR");
                     try {
                         String errorMessage = payload.getString(KEY_MESSAGE);
@@ -316,22 +255,32 @@ public abstract class GameChannel implements Cast.MessageReceivedCallback {
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
-                } else if (KEY_BOARD_LAYOUT_RESPONSE.equals(event)) {
-                    Log.d(TAG, "Board Layout");
-                    int[][] boardLayout = new int[3][3];
+                } 
+                
+                /********************GUESS REQUEST EVENT*******************/
+                else if (KEY_GUESS_REQUEST.equals(event)) {
+                    Log.d(TAG, "ERROR");
                     try {
-                        JSONArray boardJSONArray = payload.getJSONArray(KEY_BOARD);
-                        for (int i = 0; i < 3; ++i) {
-                            for (int j = 0; j < 3; ++j) {
-                                boardLayout[i][j] = boardJSONArray.getInt(i * 3 + j);
-                            }
-                        }
-                        onGameBoardLayout(boardLayout);
+                        String errorMessage = payload.getString(KEY_MESSAGE);
+                        onGameError(errorMessage);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
-                }
-            } else {
+                } 
+                
+                /**********************BET REQUEST EVENT************************/
+                else if (KEY_BET_REQUEST.equals(event)) {
+                    Log.d(TAG, "ERROR");
+                    try {
+                        String errorMessage = payload.getString(KEY_MESSAGE);
+                        onGameError(errorMessage);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                } 
+            } 
+            /**********************UNKNOWN EVENT***************************/
+            else {
                 Log.w(TAG, "Unknown payload: " + payload);
             }
         } catch (JSONException e) {
